@@ -329,3 +329,21 @@ def update_scene(position, spheres_collected, subsample=1):
         global_cloud['Colors'] = np.concatenate([global_cloud['Colors'], sphere_color]) 
         
     return global_cloud, spheres_collected
+
+
+def calculate_pointcloud_bounds():
+    """
+    Calculate the bounds of the pointcloud in each dimension to determine the size of the 3D map.
+
+    Returns:
+        x_range, y_range, z_range: The ranges in the x, y, and z dimensions respectively.
+    """
+    if 'Positions' in global_cloud:
+        x_min, y_min, z_min = np.min(global_cloud['Positions'], axis=0)
+        x_max, y_max, z_max = np.max(global_cloud['Positions'], axis=0)
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        z_range = z_max - z_min
+        return x_range, y_range, z_range
+    else:
+        return None, None, None  # Returns None if there are no positions to calculate bounds
