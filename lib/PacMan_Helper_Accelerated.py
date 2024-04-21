@@ -294,25 +294,26 @@ def update_scene(position, spheres_collected, subsample=1):
     """
     
     # Define sphere locations
-    sphere_positions = np.asarray([[ -0.1971,0.0620,2.4200],
-                                   [-0.3208,-0.0384,4.7844],
-                                   [-0.9484,0.2093,7.1190],   
-                                   [-1.0448,0.6402,9.4877],   
-                                   [-1.9173,0.7783,12.2852],   
-                                   [-3.8317,1.0877,12.9989],   
-                                   [-6.6664,1.4695,13.2349],   
-                                   [-8.9885,1.6683,11.4675],   
-                                   [-9.4013,1.8192,9.6671],   
-                                   [-9.2761,1.8705,7.1552],
-                                   [-9.0310,2.0825,4.4461]]) 
+    sphere_positions = np.asarray([[ -0.1971,0.0620,2.4200], # [   -0.18764    0.057548      2.3094]
+                                   [-0.3208,-0.0384,4.7844], # [   -0.31516   -0.034299      4.6735]
+                                   [-0.9484,0.2093,7.1190],   #
+                                   [-1.0448,0.6402,9.4877],  # [     -1.039     0.62021      9.3786]
+                                   [-1.9173,0.7783,12.2852], # [    -1.8852     0.77218      12.179]
+                                   [-3.8317,1.0877,12.9989], # [    -3.7212      1.0981      13.004]
+                                   [-6.6664,1.4695,13.2349], # [    -6.5588      1.4729      13.207]
+                                   [-8.9885,1.6683,11.4675], # [    -8.8782      1.6579      11.476]
+                                   [-9.4013,1.8192,9.6671],  # [    -9.3064      1.8072      9.7237]
+                                   [-9.2761,1.8705,7.1552],  # [   -0.92114     0.19851      7.0118]
+                                   [-9.0310,2.0825,4.4461]]) #
     
     # Update the score, updating spheres_collected and removing the sphere from the cloud
     sphere_size = 9
     dist = cdist(np.expand_dims(position, axis=0), sphere_positions)
     dist_threshold = 1.0 / (sphere_size - 1)
-    points_to_remove = np.where(dist <= dist_threshold)[1][0]
+    points_to_remove = np.where(dist <= dist_threshold)[1]
+    spheres_collected = np.array(spheres_collected, dtype=bool)
     spheres_collected[points_to_remove] = True
-    spheres_to_render = [not elem for elem in spheres_collected]
+    spheres_to_render = ~spheres_collected[:len(sphere_positions)]
     sphere_positions = sphere_positions[spheres_to_render, :]
         
     # Load pointcloud data, positions and colors, from numpy files

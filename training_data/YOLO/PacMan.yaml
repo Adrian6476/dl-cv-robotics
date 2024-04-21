@@ -1,0 +1,43 @@
+# PacMan.yaml
+train: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning for CV and Robotics/Summative/dl-cv-robotics/training_data/YOLO/train
+val: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning for CV and Robotics/Summative/dl-cv-robotics/training_data/YOLO/val
+test: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning for CV and Robotics/Summative/dl-cv-robotics/training_data/YOLO/test
+
+# Number of classes
+nc: 1
+
+# Class names
+names: ['target']
+
+# Training
+input_size: 240x160
+
+# Image format
+img_format: rgb
+
+# Hyperparameters
+# (These values are typical defaults; you may need to adjust them based on your training performance and requirements)
+lr0: 0.01       # initial learning rate
+lrf: 0.1        # final learning rate
+momentum: 0.937 # SGD momentum
+weight_decay: 0.0005
+warmup_epochs: 3
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# Epochs configuration
+epochs: 300  # total epochs to train
+batch_size: 16
+patience: 10  # for early stopping based on validation loss
+
+# Augmentation settings (adjust these if needed)
+augmentation:
+  hue: 0.1    # image hue +/- fraction
+  saturation: 0.6  # image saturation +/- fraction
+  exposure: 0.1  # image exposure +/- fraction
+  flip_lr: 0.5  # left-right image flip
+  flip_ud: 0.0  # up-down image flip (usually not needed)
+
+# Optimization
+optimizer:
+  type: SGD   # You can also try 'Adam' or 'AdamW'

@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 plt.rcParams['figure.figsize'] = [9,9]
 from itertools import permutations, repeat
+from numba import jit, njit
 
 global_cloud = {}
 global_cloud['Positions'] = np.load('training_data/npy/cloudPositions.npy')
@@ -110,87 +111,74 @@ def angle_to_directional_cosine(angle):
     return C
 
 
+@njit
+def apply_blending(locations, colors, positions, image, mapall, disk_filter, image_size):
+    for i_point in range(locations.shape[0]):
+        for iy in range(-1, 2):
+            lociy = locations[i_point, 1] + iy
+            if 0 <= lociy < image_size[0]:
+                for ix in range(-1, 2):
+                    locix = locations[i_point, 0] + ix
+                    if 0 <= locix < image_size[1]:
+                        opac = disk_filter[iy + 1, ix + 1]
+                        image[lociy, locix, :] = (1 - opac) * image[lociy, locix, :] + opac * colors[i_point, :]
+                        mapall[lociy, locix, :] = positions[i_point, :]
+
+
 def points_to_image(cloud_positions, cloud_colors, image_size, cam, projection):
     """
     Project the current view into the pointcloud to the image plane to produce an image.
     
-    Input:
-    cloud_positions - Nx3 numpy array of XYZ locations for each point, i.e. 'Positions' key within a pointcloud dictionary.
-    cloud_colors - Nx3 element numpy array of colours for each point, i.e. 'Colors' key within a pointcloud dictionary.
-    image_size - 2 element vector of requested image height and width.
-    cam - Scalar value for camera focal length
-    projection - 4x4 projection matrix for the global system to the image plane.
-    
-    Output:
-    image - image_size[0] x image_size[1] x 3 RGB image of the pointcloud colours projected to the image plane.
-    mapx - image_size[0] x image_size[1] map of pixel coordinate to X axis value in the global coordinate space.
-    mapy - image_size[0] x image_size[1] map of pixel coordinate to Y axis value in the global coordinate space.
-    mapz - image_size[0] x image_size[1] map of pixel coordinate to Z axis value in the global coordinate space.
+    Input: 
+           cloud_positions - Nx3 numpy array of XYZ locations for each point, i.e. 'Positions' key within a pointcloud dictionary.
+           cloud_colors - Nx3 element numpy array of colours for each point, i.e. 'Colors' key within a pointcloud dictionary.
+           image_size - 2 element vector of requested image height and width.
+           cam - Scalar value for camera focal length
+           projection - 4x4 projection matrix for the global system to the image plane.
+           
+    Output: 
+            image - image_size[0] x image_size[1] x 3 RGB image of the pointcloud colours projected to the image plane.
+            mapx  - image_size[0] x image_size[1] map of pixel coordinate to X axis value in the global coordinate space.
+            mapy  - image_size[0] x image_size[1] map of pixel coordinate to Y axis value in the global coordinate space.
+            mapz  - image_size[0] x image_size[1] map of pixel coordinate to Z axis value in the global coordinate space.
     """
     
-    # Define the disk filter
-    disk_filter = np.asarray([
-        [0.025078581023833, 0.145343947430219, 0.025078581023833],
-        [0.145343947430219, 0.318309886183791, 0.145343947430219],
-        [0.025078581023833, 0.145343947430219, 0.025078581023833]
-    ])
+    disk_filter = np.asarray([[0.025078581023833, 0.145343947430219, 0.025078581023833],
+                              [0.145343947430219, 0.318309886183791, 0.145343947430219],
+                              [0.025078581023833, 0.145343947430219, 0.025078581023833]])
     disk_filter = 0.5 * disk_filter / np.max(disk_filter)
 
-    # Define camera matrix
-    cam_matrix = np.asarray([
-        [cam, 0, image_size[1] / 2, 0],
-        [0, cam, image_size[0] / 2, 0],
-        [0, 0, 1, 0]
-    ], dtype=np.float64)
+    cam = np.asarray([[cam, 0, image_size[1] / 2, 0],
+                      [0, cam, image_size[0] / 2, 0],
+                      [0, 0, 1, 0]], dtype=np.float64)
 
-    # Project points
-    homogenous_positions = np.hstack([cloud_positions, np.ones((cloud_positions.shape[0], 1))])
-    projected = (projection @ homogenous_positions.T).T
-    projected = (cam_matrix @ projected.T).T
+    locations = (projection @ np.concatenate([cloud_positions, np.ones((cloud_positions.shape[0], 1))], axis=1).T).T
+    dist = np.sum(locations[:, 0:3] ** 2, axis=1)
+    idx = np.argsort(-dist, kind='mergesort')
+    locations = locations[idx, :]
+    colors = cloud_colors[idx] / 255
+    locations = (cam @ locations.T).T
+    keep = np.where(locations[:, -1] > 0)[0]
+    keepidx = idx[keep]
+    locations = locations[keep]
+    colors = colors[keep]
+    locations = locations[:, 0:2] / np.tile(locations[:, 2:3], (1, 2))
+    locations = np.round(locations).astype(int)
+    keep = np.where((locations[:, 0] >= -disk_filter.shape[0]) & 
+                    (locations[:, 0] < (image_size[1] + disk_filter.shape[0])) & 
+                    (locations[:, 1] >= -disk_filter.shape[1]) & 
+                    (locations[:, 1] < (image_size[0] + disk_filter.shape[1])))[0]
+    locations = locations[keep, :]
+    colors = colors[keep, :]
+    keepidx = keepidx[keep]
 
-    # Normalize by the third column to avoid division by zero
-    valid = projected[:, 2] > 0
-    projected = projected[valid]
-    cloud_colors = cloud_colors[valid] / 255.0
-    cloud_positions = cloud_positions[valid]
-    projected[:, :2] /= projected[:, 2, np.newaxis]
-
-    # Convert to image coordinates and ensure within image bounds
-    image_coords = np.round(projected[:, :2]).astype(int)
-    within_bounds = (
-        (image_coords[:, 0] >= 0) &
-        (image_coords[:, 0] < image_size[1]) &
-        (image_coords[:, 1] >= 0) &
-        (image_coords[:, 1] < image_size[0])
-    )
-    image_coords = image_coords[within_bounds]
-    cloud_colors = cloud_colors[within_bounds]
-    cloud_positions = cloud_positions[within_bounds]
-
-    # Initialize output arrays
     image = np.zeros(image_size + [3], dtype=np.float32)
     mapall = np.zeros(image_size + [3], dtype=np.float32)
+    apply_blending(locations, colors, cloud_positions[keepidx], image, mapall, disk_filter, image_size)
 
-    # Apply disk filter efficiently
-    for dy, dx in np.ndindex(disk_filter.shape):
-        offset_y = image_coords[:, 1] + dy - 1
-        offset_x = image_coords[:, 0] + dx - 1
-        valid = (
-            (offset_y >= 0) & (offset_y < image_size[0]) &
-            (offset_x >= 0) & (offset_x < image_size[1])
-        )
-        y_coords, x_coords = offset_y[valid], offset_x[valid]
-        weights = disk_filter[dy, dx]
-        for i in range(3):  # Apply the weights for each color channel
-            image[y_coords, x_coords, i] += cloud_colors[valid, i] * weights
-        mapall[y_coords, x_coords] = cloud_positions[valid]
-
-    # Clip values to valid range
-    np.clip(image, 0, 1, out=image)
-
-    # Separate the XYZ mappings
-    mapx, mapy, mapz = mapall[:, :, 0], mapall[:, :, 1], mapall[:, :, 2]
-
+    mapx = mapall[:, :, 0]
+    mapy = mapall[:, :, 1]
+    mapz = mapall[:, :, 2]
     return image, mapx, mapy, mapz
 
 
@@ -322,9 +310,11 @@ def update_scene(position, spheres_collected, subsample=1):
     sphere_size = 9
     dist = cdist(np.expand_dims(position, axis=0), sphere_positions)
     dist_threshold = 1.0 / (sphere_size - 1)
-    points_to_remove = np.where(dist <= dist_threshold)[1][0]
+    points_to_remove = np.where(dist <= dist_threshold)[1]
+
+    spheres_collected = np.array(spheres_collected, dtype=bool)
     spheres_collected[points_to_remove] = True
-    spheres_to_render = [not elem for elem in spheres_collected]
+    spheres_to_render = ~spheres_collected[:len(sphere_positions)]
     sphere_positions = sphere_positions[spheres_to_render, :]
         
     # Load pointcloud data, positions and colors, from numpy files
