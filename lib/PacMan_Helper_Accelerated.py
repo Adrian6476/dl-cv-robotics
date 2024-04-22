@@ -111,8 +111,10 @@ def angle_to_directional_cosine(angle):
     return C
 
 
+# Extract the nested loop function apply_blending in the points_to_image function, compiled using Numba's @njit.
 @njit
 def apply_blending(locations, colors, positions, image, mapall, disk_filter, image_size):
+    # Process each point for image blending
     for i_point in range(locations.shape[0]):
         for iy in range(-1, 2):
             lociy = locations[i_point, 1] + iy
@@ -120,8 +122,10 @@ def apply_blending(locations, colors, positions, image, mapall, disk_filter, ima
                 for ix in range(-1, 2):
                     locix = locations[i_point, 0] + ix
                     if 0 <= locix < image_size[1]:
-                        opac = disk_filter[iy + 1, ix + 1]
+                        opac = disk_filter[iy + 1, ix + 1] # Opacity from filter
+                        # Blend point color into the image
                         image[lociy, locix, :] = (1 - opac) * image[lociy, locix, :] + opac * colors[i_point, :]
+                        # Update map with the original global position
                         mapall[lociy, locix, :] = positions[i_point, :]
 
 
@@ -172,8 +176,11 @@ def points_to_image(cloud_positions, cloud_colors, image_size, cam, projection):
     colors = colors[keep, :]
     keepidx = keepidx[keep]
 
+    # Initialise image and map arrays
     image = np.zeros(image_size + [3], dtype=np.float32)
     mapall = np.zeros(image_size + [3], dtype=np.float32)
+    
+    # Apply blending of point colors into the image using the disk filter
     apply_blending(locations, colors, cloud_positions[keepidx], image, mapall, disk_filter, image_size)
 
     mapx = mapall[:, :, 0]

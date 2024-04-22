@@ -3,11 +3,11 @@ train: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning 
 val: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning for CV and Robotics/Summative/dl-cv-robotics/training_data/YOLO/val
 test: /home/adrian/OneDrive/Documents/Master of Computer Science/Deep Learning for CV and Robotics/Summative/dl-cv-robotics/training_data/YOLO/test
 
-# Number of classes
+# Num of classes
 nc: 1
 
 # Class names
-names: ['target']
+names: ['target'] # sphere
 
 # Training
 input_size: 240x160
@@ -15,8 +15,7 @@ input_size: 240x160
 # Image format
 img_format: rgb
 
-# Hyperparameters
-# (These values are typical defaults; you may need to adjust them based on your training performance and requirements)
+# Hyperparameters)
 lr0: 0.01       # initial learning rate
 lrf: 0.1        # final learning rate
 momentum: 0.937 # SGD momentum
@@ -38,6 +37,6 @@ augmentation:
   flip_lr: 0.5  # left-right image flip
   flip_ud: 0.0  # up-down image flip (usually not needed)
 
-# Optimization
+# Optimisation
 optimizer:
-  type: SGD   # You can also try 'Adam' or 'AdamW'
+  type: SGD
