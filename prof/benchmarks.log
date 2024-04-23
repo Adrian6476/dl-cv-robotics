@@ -1,0 +1,16 @@
+
+Benchmarks complete for YOLO.pt on training_data/YOLO/PacMan.yaml at imgsz=640 (162.47s)
+                   Format Status❔  Size (MB)  metrics/mAP50-95(B)  Inference time (ms/im)
+0                 PyTorch       ✅       49.6               0.7850                    7.80
+1             TorchScript       ✅       99.1               0.7881                    9.08
+2                    ONNX       ❎       98.8                  NaN                     NaN
+3                OpenVINO       ❌        0.0                  NaN                     NaN
+4                TensorRT       ✅      129.5               0.7881                    7.27
+5                  CoreML       ❌        0.0                  NaN                     NaN
+6   TensorFlow SavedModel       ❌        0.0                  NaN                     NaN
+7     TensorFlow GraphDef       ❌        0.0                  NaN                     NaN
+8         TensorFlow Lite       ❌        0.0                  NaN                     NaN
+9     TensorFlow Edge TPU       ❌        0.0                  NaN                     NaN
+10          TensorFlow.js       ❌        0.0                  NaN                     NaN
+11           PaddlePaddle       ❌        0.0                  NaN                     NaN
+12                   NCNN       ❌        0.0                  NaN                     NaN
